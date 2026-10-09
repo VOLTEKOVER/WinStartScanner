@@ -1,0 +1,57 @@
+{
+  "name": "winstart-scanner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scanner eseguibili senza collegamento in Start Menu",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "dev:electron": "node scripts/dev.mjs",
+    "electron:dev": "node scripts/dev.mjs",
+    "electron:build": "nuxt generate && electron-builder --win",
+    "start": "electron electron/main.mjs"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "nuxt": "^3.21.11",
+    "tailwindcss": "^4.3.3",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.8.0"
+  },
+  "build": {
+    "appId": "com.valeriodipunzio.winstartscanner",
+    "productName": "WinStartScanner",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      ".output/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "valeriodipunzio",
+      "repo": "WinStartScanner"
+    }
+  }
+}
