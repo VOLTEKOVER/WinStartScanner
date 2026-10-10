@@ -107,25 +107,29 @@ class="icon-btn titlebar-oc-btn app-no-drag"
       </div>
 
       <!-- Update indicator -->
-      <div class="flex items-center gap-1.5 mr-1" :class="updateAvailable ? 'text-[var(--accent)]' : 'text-white/25'">
+      <button
+        v-if="updateAvailable"
+        class="update-pill app-no-drag"
+        :class="{ ready: updateReady, busy: downloading }"
+        @click="$emit('update')"
+        :title="updateTitle"
+      >
         <span
-          class="w-1.5 h-1.5 rounded-full"
-          :class="updateAvailable ? 'bg-[var(--accent)]' : 'bg-white/20'"
-          :title="updateAvailable ? 'Update available' : 'App up to date'"
-        />
-        <button
-          v-if="updateAvailable"
-          class="text-[11px] font-medium bg-transparent border-none cursor-pointer transition-opacity hover:opacity-70 py-0.5 px-1"
-          :disabled="downloading"
-          @click="$emit('update')"
-          title="Download and install update"
-        >
-          {{ downloading ? 'Download...' : updateVersion ? 'v' + updateVersion : 'Update' }}
-        </button>
-        <span v-else class="text-[11px]">Up to date</span>
+          class="w-1.5 h-1.5 rounded-full shrink-0"
+          :class="downloading ? 'animate-pulse-dot' : ''"
+          :style="{ background: updateReady ? '#22c55e' : 'var(--accent)' }"
+        ></span>
+        <svg v-if="updateReady" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <svg v-else-if="downloading" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        <span class="text-[11px] font-medium whitespace-nowrap">{{ updateLabel }}</span>
+      </button>
+      <div v-else class="flex items-center gap-1.5 mr-1 text-white/25">
+        <span class="w-1.5 h-1.5 rounded-full bg-white/20" title="App up to date"></span>
+        <span class="text-[11px]">Up to date</span>
       </div>
 
-      <span class="text-[11px] text-white/30 mr-2">v1.0.0</span>
+      <span class="text-[11px] text-white/30 mr-2">v{{ appVersion }}</span>
 
       <div class="flex items-center">
         <button @click="reload" class="icon-btn app-no-drag" title="Reload interface" aria-label="Reload">
@@ -154,8 +158,19 @@ class="icon-btn titlebar-oc-btn app-no-drag"
 </template>
 
 <script setup>
-const props = defineProps({ updateAvailable: Boolean, updateVersion: String, downloading: Boolean });
+const props = defineProps({ updateAvailable: Boolean, updateVersion: String, downloading: Boolean, updateProgress: Number, updateReady: Boolean });
 const emit = defineEmits(['update', 'settings', 'opencode-settings']);
+
+const updateTitle = computed(() => {
+  if (props.updateReady) return 'Update ready to install — click to install';
+  if (props.downloading) return 'Downloading update ' + (props.updateProgress || 0) + '%';
+  return 'Update available' + (props.updateVersion ? ' — v' + props.updateVersion : '');
+});
+const updateLabel = computed(() => {
+  if (props.updateReady) return 'Update ready';
+  if (props.downloading) return 'Updating ' + (props.updateProgress || 0) + '%';
+  return props.updateVersion ? 'v' + props.updateVersion : 'Update';
+});
 const route = useRoute();
 const router = useRouter();
 const isHome = computed(() => route.path === '/');
@@ -167,6 +182,7 @@ function goHome() { router.push('/'); }
 
 const api = process.client ? window.electronAPI : null;
 const opencodeAvailable = ref(false);
+const appVersion = ref('');
 const ocPopover = ref(false);
 const isMaximized = ref(false);
 const popoverEl = ref(null);
@@ -191,6 +207,10 @@ function jobStyle(color) {
 
 onMounted(async () => {
   if (api) {
+    try {
+      const info = await api.getAppInfo();
+      if (info?.version) appVersion.value = info.version;
+    } catch {}
     try {
       const res = await api.checkOpenCode();
       opencodeAvailable.value = res.available;
@@ -278,4 +298,20 @@ function maybeToggleMaximize(e) {
   transition: background 0.15s, opacity 0.15s;
 }
 .history-btn:hover { background: rgba(255,255,255,0.06); opacity: 1; }
+
+.update-pill {
+  display: flex; align-items: center; gap: 6px;
+  margin-right: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 0.5px solid rgba(55,138,221,0.4);
+  background: rgba(55,138,221,0.12);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.update-pill:hover { background: rgba(55,138,221,0.22); }
+.update-pill.ready { border-color: rgba(34,197,94,0.45); background: rgba(34,197,94,0.14); color: #22c55e; }
+.update-pill.ready:hover { background: rgba(34,197,94,0.24); }
+.update-pill.busy { cursor: default; }
 </style>

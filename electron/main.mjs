@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage, she
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { spawn, execFile } from 'child_process';
+import { spawn } from 'child_process';
 import http from 'http';
 import fs from 'fs';
 import { assertSafeLnkPath, sanitizeSettings, sanitizeShortcutRequest, sanitizeOrganizationActions, assertHttpsUrl, sanitizeNotification } from './ipc-guard.mjs';
@@ -369,46 +369,89 @@ ipcMain.handle('create-shortcuts', async (_e, arg) => {
 
 const REPO = 'VOLTEKOVER/WinStartScanner';
 
-ipcMain.handle('check-update', async () => {
+function compareVersions(a, b) {
+  const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x > y) return 1;
+    if (x < y) return -1;
+  }
+  return 0;
+}
+
+ipcMain.handle('check-update', async (_e, opts) => {
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-      headers: { 'User-Agent': 'WinStartScanner/1.0' },
+    const channel = opts && opts.channel === 'beta' ? 'beta' : 'stable';
+    const url = channel === 'beta'
+      ? `https://api.github.com/repos/${REPO}/releases?per_page=10`
+      : `https://api.github.com/repos/${REPO}/releases/latest`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'WinStartScanner/1.0', Accept: 'application/vnd.github+json' },
       signal: AbortSignal.timeout(8000)
     });
     if (!res.ok) return { isAvailable: false };
-    const release = await res.json();
+    const payload = await res.json();
+    const release = channel === 'beta'
+      ? (Array.isArray(payload) ? payload.find(r => r && !r.draft) : null)
+      : payload;
+    if (!release) return { isAvailable: false };
     const latestTag = (release.tag_name || '').replace(/^v/, '');
     const currentVer = app.getVersion();
-    if (latestTag && currentVer && latestTag <= currentVer) return { isAvailable: false };
-    const asset = release.assets?.find(a => a.name?.endsWith('.exe'));
-    return { isAvailable: true, version: latestTag, downloadUrl: asset?.browser_download_url || '', releaseNotes: release.body || '' };
+    if (!latestTag || compareVersions(latestTag, currentVer) <= 0) return { isAvailable: false };
+    const asset = release.assets?.find(a => a.name && a.name.endsWith('.exe'));
+    if (!asset?.browser_download_url) return { isAvailable: false };
+    return {
+      isAvailable: true,
+      version: latestTag,
+      downloadUrl: asset.browser_download_url,
+      releaseNotes: release.body || '',
+      name: release.name || ('v' + latestTag)
+    };
   } catch { return { isAvailable: false }; }
 });
 
 ipcMain.handle('download-update', async (_e, updateInfo) => {
   const url = assertHttpsUrl(updateInfo && updateInfo.downloadUrl);
   const downloadPath = path.join(app.getPath('temp'), 'WinStartScanner-Setup.exe');
-  const res = await fetch(url, { signal: AbortSignal.timeout(300000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(900000) });
+  if (!res.ok || !res.body) throw new Error('Download failed: HTTP ' + res.status);
   const total = parseInt(res.headers.get('content-length') || '0', 10);
   const reader = res.body.getReader();
   const writer = fs.createWriteStream(downloadPath);
   let downloaded = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    downloaded += value.length;
-    writer.write(Buffer.from(value));
-    if (total && mainWindow && !mainWindow.isDestroyed())
-      mainWindow.webContents.send('update-progress', Math.round((downloaded / total) * 100));
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      downloaded += value.length;
+      const buf = Buffer.from(value);
+      if (!writer.write(buf)) {
+        await new Promise((resolve, reject) => {
+          writer.once('drain', resolve);
+          writer.once('error', reject);
+        });
+      }
+      if (total && mainWindow && !mainWindow.isDestroyed())
+        mainWindow.webContents.send('update-progress', Math.min(100, Math.round((downloaded / total) * 100)));
+    }
+    await new Promise((resolve, reject) => writer.end(err => (err ? reject(err) : resolve())));
+  } catch (e) {
+    try { writer.destroy(); } catch {}
+    throw e;
   }
-  writer.end();
   return downloadPath;
 });
 
 ipcMain.handle('apply-update', () => {
   const setupPath = path.join(app.getPath('temp'), 'WinStartScanner-Setup.exe');
-  if (fs.existsSync(setupPath))
-    execFile(setupPath, ['/S'], (err) => { if (err) console.error(err); app.quit(); });
+  if (!fs.existsSync(setupPath)) throw new Error('Installer not found');
+  const child = spawn(setupPath, ['/S'], { detached: true, stdio: 'ignore' });
+  child.unref();
+  setTimeout(() => app.quit(), 400);
+  return true;
 });
 
 // ========================================

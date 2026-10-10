@@ -4,7 +4,9 @@
       :update-available="updateInfo.isAvailable"
       :update-version="updateInfo.version"
       :downloading="downloading"
-      @update="downloadAndInstall"
+      :update-progress="updateProgress"
+      :update-ready="updateReady"
+      @update="handleUpdateClick"
       @settings="openSettings('general')"
       @opencode-settings="openSettings('opencode')"
     />
@@ -20,14 +22,18 @@
     <NuxtPage class="flex-1 flex flex-col overflow-hidden" />
 
     <SettingsPanel v-if="showSettings" @close="showSettings = false" />
+    <UpdateDialog />
     <AppTooltip />
   </div>
 </template>
 
 <script setup>
-const { showSettings, settingsCategory, updateInfo, downloading } = useAppState();
+const { showSettings, settingsCategory } = useAppState();
+const {
+  updateInfo, downloading, updateProgress, updateReady,
+  registerProgress, loadUpdateSettings, checkForUpdates, openUpdateDialog,
+} = useUpdater();
 const { registerListeners } = useJobState();
-const api = process.client ? window.electronAPI : null;
 const tickerText = ref('● WinStartScanner  //  GESTIONE COMPLETA DEL MENU START  //  SCANSIONE  //  ORGANIZZAZIONE  //  PULIZIA  ●');
 
 function openSettings(cat) {
@@ -35,16 +41,15 @@ function openSettings(cat) {
   showSettings.value = true;
 }
 
-if (api) {
-  api.checkUpdate().then(r => { updateInfo.value = r; });
-}
+registerProgress();
 registerListeners();
 
-async function downloadAndInstall() {
-  downloading.value = true;
-  try {
-    await api.downloadUpdate(updateInfo.value);
-    await api.applyUpdate();
-  } catch { downloading.value = false; }
+onMounted(async () => {
+  const { autoCheck, channel } = await loadUpdateSettings();
+  if (autoCheck) checkForUpdates({ channel, autoDownload: true });
+});
+
+function handleUpdateClick() {
+  openUpdateDialog(true);
 }
 </script>

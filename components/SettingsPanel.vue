@@ -331,6 +331,7 @@ const categories = [
 ];
 
 const { settingsCategory } = useAppState();
+const { updateInfo, downloading, openUpdateDialog } = useUpdater();
 
 const activeCategory = ref(settingsCategory.value || 'general');
 const search = ref('');
@@ -339,7 +340,6 @@ const checkingUpdate = ref(false);
 const updateNotice = ref('');
 const updateNoticeError = ref(false);
 const updateResult = ref(null);
-const downloading = ref(false);
 const ocConnected = ref(false);
 const ocPath = ref('');
 const appInfo = ref({});
@@ -477,7 +477,7 @@ async function checkNow() {
   updateNotice.value = '';
   updateResult.value = null;
   try {
-    const info = await api.checkUpdate();
+    const info = await api.checkUpdate({ channel: settings.value.updates.channel || 'stable' });
     updateResult.value = info;
     if (info.isAvailable) { updateNotice.value = `Update available: v${info.version}`; updateNoticeError.value = false; }
     else { updateNotice.value = 'You already have the latest version.'; updateNoticeError.value = false; }
@@ -485,12 +485,9 @@ async function checkNow() {
   finally { checkingUpdate.value = false; }
 }
 
-async function downloadUpdate() {
+function downloadUpdate() {
   if (!api || !updateResult.value?.isAvailable) return;
-  downloading.value = true;
-  try {
-    await api.downloadUpdate(updateResult.value);
-    await api.applyUpdate();
-  } catch { downloading.value = false; }
+  updateInfo.value = updateResult.value;
+  openUpdateDialog(true);
 }
 </script>

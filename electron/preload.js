@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   runScan: () => ipcRenderer.invoke('run-scan'),
-  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  checkUpdate: (opts) => ipcRenderer.invoke('check-update', opts),
   downloadUpdate: (info) => ipcRenderer.invoke('download-update', info),
   applyUpdate: () => ipcRenderer.invoke('apply-update'),
   onScanProgress: (cb) => { ipcRenderer.on('scan-progress', (_e, v) => cb(v)); },
