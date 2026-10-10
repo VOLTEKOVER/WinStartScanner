@@ -367,7 +367,7 @@ ipcMain.handle('create-shortcuts', async (_e, arg) => {
   });
 });
 
-const REPO = 'valeriodipunzio/WinStartScanner';
+const REPO = 'VOLTEKOVER/WinStartScanner';
 
 ipcMain.handle('check-update', async () => {
   try {

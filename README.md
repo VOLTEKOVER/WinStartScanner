@@ -1,5 +1,20 @@
 # WinStartScanner
 
+![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron_44-47848F?style=flat-square&logo=electron&logoColor=white)
+![Nuxt](https://img.shields.io/badge/Nuxt_3-00DC82?style=flat-square&logo=nuxtdotjs&logoColor=white)
+![Vue](https://img.shields.io/badge/Vue_3-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white)
+![PowerShell](https://img.shields.io/badge/PowerShell_5.1-5391FE?style=flat-square&logo=powershell&logoColor=white)
+![GitHub Release](https://img.shields.io/github/v/release/VOLTEKOVER/WinStartScanner?style=flat-square)
+
+> **Versione corrente: 1.0.0** — seleziona la release più recente per l'ultimo `.exe` (l'app verifica gli aggiornamenti automaticamente all'avvio).
+
+## Installazione
+
+Scarica **`WinStartScanner Setup 1.0.0.exe`** dalla sezione [Releases](https://github.com/VOLTEKOVER/WinStartScanner/releases) ed esegui l'installer NSIS (directory di installazione liberamente modificabile). In alternativa, la cartella `win-unpacked` è **portabile**: apri solo `WinStartScanner.exe`.
+
+Requisiti: **Windows 10/11 x64**. L'integrazione AI richiede l'installazione di [OpenCode](https://opencode.ai) (`opencode` presente nel `PATH`).
+
 Applicazione desktop Windows per la **gestione completa del Menu Start**: trova gli orfani, organizza le voci per categoria, ripulisce i collegamenti rotti e gestisce i backup.
 
 Scansiona le cartelle di programma alla ricerca di **eseguibili non collegati al Menu Start** e ti permette di:
@@ -58,7 +73,7 @@ L'app è suddivisa in tre blocchi:
 - **Con OpenCode**: i dati degli orfani vengono trasformati in un prompt strutturato e lanciati con `opencode run --format json`; la risposta (array di indici) seleziona automaticamente gli elementi da aggiungere. Il testo generato dall'AI viene **inoltrato al renderer in tempo reale** (`ai-text` via IPC) durante la generazione, così l'interfaccia può mostrare l'output mentre viene scritto.
 
 ### Organizzazione del Menu Start (`pages/organize.vue` + `apply-organization.ps1`)
-Legge la struttura del Menu Start (`read-startmenu.ps1`), la mostra con drag & drop e genera azioni: crea cartelle, sposta voce, rinomina, crea nuovi collegamenti. Con OpenCode propone un raggruppamento automatico per categorie. **Ogni operazione è preceduta da un backup automatico.**
+Legge la struttura del Menu Start (`read-startmenu.ps1`) e la mostra in una **griglia stile Launchpad**: apri una cartella per vedere cosa contiene, trascina le app sopra le cartelle (o su un livello del breadcrumb) per spostarle. Tutto avviene come **anteprima colorata**: mentre trascini l'icona diventa **arancione**, una volta dentro la cartella resta una "ghost" **arancione e semitrasparente** nella vecchia posizione con scritto *moved to …*, mentre l'icona **verde** appare dentro la cartella di destinazione. Con **OpenCode** (`aiOrganize`) propone un raggruppamento automatico per categorie: le app restano visibili durante il calcolo e, alla risposta, **volano letteralmente dentro le nuove cartelle**. Nessuna modifica viene applicata finché non premi **Apply changes**. **Ogni operazione è preceduta da un backup automatico.**
 
 ### Collegamenti rotti (`pages/broken-links.vue` + `check-broken-links.ps1`)
 Trova tutti i `.lnk` che puntano a file inesistenti e permette di eliminarli. La cancellazione è limitata ai file `.lnk` contenuti nel Menu Start.
@@ -108,6 +123,10 @@ npm run build
 
 # Genera il frontend e crea l'installer Windows (dist-electron/)
 npm run electron:build
+
+# Se non possiedi un certificato di firma, disattiva il rilevamento automatico (evita il fallimento del download dei tool di firma su sistemi senza privilegi)
+# (PowerShell)
+# $env:CSC_IDENTITY_AUTO_DISCOVERY="false"; npm run electron:build
 
 # Avvia l'app da build esistente (.output/public)
 npm start

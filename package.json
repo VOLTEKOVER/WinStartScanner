@@ -1,8 +1,9 @@
 {
-  "name": "winstart-scanner",
+"name": "winstart-scanner",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
+  "main": "electron/main.mjs",
+  "author": "Valerio Di Punzio",
   "description": "Scanner eseguibili senza collegamento in Start Menu",
   "scripts": {
     "dev": "nuxt dev",
@@ -41,7 +42,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "public/icon.png"
+      "icon": "assets/icon.png"
     },
     "nsis": {
       "oneClick": false,
@@ -50,7 +51,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "valeriodipunzio",
+      "owner": "VOLTEKOVER",
       "repo": "WinStartScanner"
     }
   }
